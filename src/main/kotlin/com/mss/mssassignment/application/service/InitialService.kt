@@ -1,5 +1,6 @@
 package com.mss.mssassignment.application.service
 
+import com.mss.mssassignment.application.service.product.ProductService
 import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
 import org.slf4j.LoggerFactory
