@@ -94,7 +94,7 @@ class InitialService(
 
         initProducts.forEach {
             runCatching { productService.create(it) }
-                .onSuccess { savedProduct -> messagePublisher.publish("ProductCreatedEvent", ProductCreatedEvent(savedProduct.id)) }
+                .onSuccess { savedProduct -> messagePublisher.publish("ProductCreatedEvent", ProductCreatedEvent(savedProduct)) }
                 .getOrElse { e -> throw e }
         }
     }

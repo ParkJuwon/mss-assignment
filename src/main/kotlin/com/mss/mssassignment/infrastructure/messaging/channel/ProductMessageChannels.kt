@@ -12,6 +12,10 @@ class ProductMessageChannels {
     fun productCreatedEventChannel(messageTaskExecutor: ThreadPoolTaskExecutor): MessageChannel =
         PublishSubscribeChannel(messageTaskExecutor)
 
+    @Bean("ProductUpdatedEvent")
+    fun productUpdatedEventChannel(messageTaskExecutor: ThreadPoolTaskExecutor): MessageChannel =
+        PublishSubscribeChannel(messageTaskExecutor)
+
     @Bean("ProductDeletedEvent")
     fun productDeletedEventChannel(messageTaskExecutor: ThreadPoolTaskExecutor): MessageChannel =
         PublishSubscribeChannel(messageTaskExecutor)

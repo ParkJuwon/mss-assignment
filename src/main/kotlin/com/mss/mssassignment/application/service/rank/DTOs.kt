@@ -24,3 +24,15 @@ data class CategoryNameRankResponse(
         val price: Long,
     )
 }
+
+data class BrandLowestRankResponse(
+    val totalPrice: Long,
+    val brand: String,
+    val products: List<BrandLowestRankProduct>,
+) {
+    data class BrandLowestRankProduct(
+        val category: Category,
+        val categoryName: String,
+        val price: Long,
+    )
+}

@@ -13,17 +13,19 @@ class CategoryRankService(
 ) {
     fun getLowestRank(): CategoryLowestRankResponse {
         val categoryProducts = categoryRankRepository.findAllByType(RankType.LOWEST)
-        val totalPrice: Long = categoryProducts.sumOf { it.product.price }
+        val totalPrice: Long = categoryProducts.sumOf { it.product?.price ?: 0 }
         return CategoryLowestRankResponse(
             totalPrice = totalPrice,
             products =
-                categoryProducts.sortedBy { it.category.ordinal }.map {
-                    CategoryLowestRankResponse.CategoryLowestRankProduct(
-                        category = it.product.category,
-                        categoryName = it.product.category.value,
-                        brand = it.product.brand,
-                        price = it.product.price,
-                    )
+                categoryProducts.sortedBy { it.category.ordinal }.mapNotNull {
+                    it.product?.let { product ->
+                        CategoryLowestRankResponse.CategoryLowestRankProduct(
+                            category = product.category,
+                            categoryName = product.category.value,
+                            brand = product.brand,
+                            price = product.price,
+                        )
+                    }
                 },
         )
     }
@@ -32,24 +34,24 @@ class CategoryRankService(
         val category = Category.findCategory(categoryName)
         val categoryRanks = categoryRankRepository.findAllByCategory(category)
 
-        val lowestRank =
-            categoryRanks.find { rank -> rank.type == RankType.LOWEST }
+        val lowestRankProduct =
+            categoryRanks.find { rank -> rank.type == RankType.LOWEST }?.product
                 ?: throw MssException(MssExceptionType.CATEGORY_LOWEST_PRODUCT_NOT_FOUND)
-        val highestRank =
-            categoryRanks.find { rank -> rank.type == RankType.HIGHEST }
+        val highestRankProduct =
+            categoryRanks.find { rank -> rank.type == RankType.HIGHEST }?.product
                 ?: throw MssException(MssExceptionType.CATEGORY_HIGHEST_PRODUCT_NOT_FOUND)
 
         return CategoryNameRankResponse(
             categoryName = categoryName,
             lowest =
                 CategoryNameRankResponse.CategoryNameRankProduct(
-                    brand = lowestRank.product.brand,
-                    price = lowestRank.product.price,
+                    brand = lowestRankProduct.brand,
+                    price = lowestRankProduct.price,
                 ),
             highest =
                 CategoryNameRankResponse.CategoryNameRankProduct(
-                    brand = highestRank.product.brand,
-                    price = highestRank.product.price,
+                    brand = highestRankProduct.brand,
+                    price = highestRankProduct.price,
                 ),
         )
     }
