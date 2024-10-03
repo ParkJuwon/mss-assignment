@@ -3,12 +3,15 @@ package com.mss.mssassignment.application.service
 import com.mss.mssassignment.application.service.product.ProductService
 import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
+import com.mss.mssassignment.domain.product.event.ProductCreatedEvent
+import com.mss.mssassignment.infrastructure.messaging.MessagePublisher
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 @Service
 class InitialService(
     private val productService: ProductService,
+    private val messagePublisher: MessagePublisher,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -90,7 +93,9 @@ class InitialService(
             )
 
         initProducts.forEach {
-            productService.saveProduct(it)
+            productService.saveProduct(it).also { savedProduct ->
+                messagePublisher.publish("ProductCreatedEvent", ProductCreatedEvent(savedProduct.id))
+            }
         }
     }
 }
