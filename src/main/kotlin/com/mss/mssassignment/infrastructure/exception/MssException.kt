@@ -11,5 +11,6 @@ enum class MssExceptionType(
     val code: Int,
     val message: String,
 ) {
-    PRODUCT_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, -10000, "Product save failed"),
+    PRODUCT_ALREADY_EXISTS(HttpStatus.CONFLICT, -10000, "Product already exists"),
+    PRODUCT_NOT_FOUND(HttpStatus.NOT_FOUND, -10001, "Product not found"),
 }
