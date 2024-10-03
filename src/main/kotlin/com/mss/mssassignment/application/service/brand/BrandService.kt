@@ -1,16 +1,17 @@
-package com.mss.mssassignment.application.service.rank
+package com.mss.mssassignment.application.service.brand
 
-import com.mss.mssassignment.domain.rank.BrandRankRepository
+import com.mss.mssassignment.application.service.rank.BrandLowestRankResponse
+import com.mss.mssassignment.domain.brand.BrandRepository
 import com.mss.mssassignment.infrastructure.exception.MssException
 import com.mss.mssassignment.infrastructure.exception.MssExceptionType
 import org.springframework.stereotype.Service
 
 @Service
-class BrandRankService(
-    private val brandRankRepository: BrandRankRepository,
+class BrandService(
+    private val brandRepository: BrandRepository,
 ) {
     fun getLowestBrand(): BrandLowestRankResponse {
-        val brandRank = brandRankRepository.findTopByOrderByTotalPrice()
+        val brandRank = brandRepository.findTopByOrderByTotalPrice()
         return brandRank?.let {
             BrandLowestRankResponse(
                 totalPrice = it.totalPrice,

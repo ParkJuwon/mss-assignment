@@ -1,4 +1,4 @@
-package com.mss.mssassignment.domain.rank
+package com.mss.mssassignment.domain.brand
 
 import com.mss.mssassignment.domain.product.Product
 import jakarta.persistence.Column
@@ -15,13 +15,13 @@ import org.hibernate.annotations.Comment
 
 @Entity
 @Table(
-    name = "brand_ranks",
+    name = "brands",
     indexes = [
         Index(name = "idx_brand", columnList = "brand", unique = true),
         Index(name = "idx_total_price", columnList = "totalPrice"),
     ],
 )
-class BrandRank(
+class Brand(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0L,
