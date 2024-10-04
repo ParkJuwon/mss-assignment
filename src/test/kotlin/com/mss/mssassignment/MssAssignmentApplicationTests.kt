@@ -1,12 +1,17 @@
 package com.mss.mssassignment
 
+import com.mss.mssassignment.application.service.InitialService
+import com.mss.mssassignment.application.service.product.ProductsResponse
+import com.mss.mssassignment.application.service.rank.BrandLowestRankResponse
 import com.mss.mssassignment.application.service.rank.CategoryLowestRankResponse
+import com.mss.mssassignment.application.service.rank.CategoryNameRankResponse
 import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
 import com.mss.mssassignment.domain.product.ProductRepository
 import com.mss.mssassignment.infrastructure.exception.MssExceptionType
 import com.mss.mssassignment.presentation.config.ExceptionBody
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -24,7 +29,18 @@ class MssAssignmentApplicationTests
     constructor(
         private val restTemplate: TestRestTemplate,
         private val productRepository: ProductRepository,
+        private val brandRepository: ProductRepository,
+        private val categoryRepository: ProductRepository,
+        private val initialService: InitialService,
     ) {
+        @BeforeEach
+        fun tearDown() {
+            productRepository.deleteAll()
+            brandRepository.deleteAll()
+            categoryRepository.deleteAll()
+            initialService.initialProduct()
+        }
+
         @Test
         @DisplayName("상품 조회시 id 로 조회 가능")
         fun productGetByIdTest() {
@@ -210,7 +226,7 @@ class MssAssignmentApplicationTests
         }
 
         @Test
-        @DisplayName("카테고리 별 최저가 변경 시 변경된 값으로 갱신된다")
+        @DisplayName("전체 카테고리 최저가 변경 시 변경된 값으로 갱신된다")
         fun categoryLowestUpdateTest() {
             val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
@@ -228,6 +244,7 @@ class MssAssignmentApplicationTests
             val updateResponse = restTemplate.exchange("/admin/product", HttpMethod.PUT, entity, Product::class.java)
             assertThat(updateResponse.statusCode).isEqualTo(HttpStatus.OK)
 
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
             val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             with(response.body!!) {
                 val productCategories = this.products.map { it.category }.toSet()
@@ -243,7 +260,7 @@ class MssAssignmentApplicationTests
         }
 
         @Test
-        @DisplayName("카테고리 별 최저가 삭제 시 변경된 값으로 갱신된다")
+        @DisplayName("전체 카테고리 최저가 삭제 시 변경된 값으로 갱신된다")
         fun categoryLowestDeleteTest() {
             val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
@@ -266,6 +283,7 @@ class MssAssignmentApplicationTests
                 )
             assertThat(deleteResponse.statusCode).isEqualTo(HttpStatus.OK)
 
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
             val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             with(response.body!!) {
                 val productCategories = this.products.map { it.category }.toSet()
@@ -280,7 +298,7 @@ class MssAssignmentApplicationTests
         }
 
         @Test
-        @DisplayName("카테고리 별 최저가 생성 시 변경된 값으로 갱신된다")
+        @DisplayName("전체 카테고리 최저가 생성 시 변경된 값으로 갱신된다")
         fun categoryLowestCreateTest() {
             val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
@@ -291,6 +309,7 @@ class MssAssignmentApplicationTests
             val createResponse = restTemplate.postForEntity("/admin/product", newProduct, Product::class.java)
             assertThat(createResponse.statusCode).isEqualTo(HttpStatus.OK)
 
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
             val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
             with(response.body!!) {
                 val productCategories = this.products.map { it.category }.toSet()
@@ -303,5 +322,274 @@ class MssAssignmentApplicationTests
                 assertThat(changedProduct.brand).isNotEqualTo(randomProduct.brand)
                 assertThat(changedProduct.brand).isEqualTo(newProduct.brand)
             }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 조회가 잘 이루어 진다")
+        fun categoryNameTest() {
+            val categoryName = "바지"
+            val response = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+            with(response.body!!) {
+                assertThat(this.categoryName).isEqualTo(categoryName)
+                assertThat(this.lowest).isNotNull()
+                assertThat(this.highest).isNotNull()
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최저가 상품 생성 시 변경된 값으로 갱신된다")
+        fun categoryNameLowestCreateTest() {
+            val category = Category.TOP
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val newProduct = Product(brand = "X", category = category, price = rankFirstResponse.body!!.lowest.price - 1)
+            val createResponse = restTemplate.postForEntity("/admin/product", newProduct, Product::class.java)
+            assertThat(createResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.lowest) {
+                assertThat(this.brand).isEqualTo(newProduct.brand)
+                assertThat(this.price).isEqualTo(newProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최저가 상품 생성 시 변경된 값으로 갱신된다")
+        fun categoryNameHighestCreateTest() {
+            val category = Category.OUTER
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val newProduct = Product(brand = "X", category = category, price = rankFirstResponse.body!!.highest.price + 1)
+            val createResponse = restTemplate.postForEntity("/admin/product", newProduct, Product::class.java)
+            assertThat(createResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.highest) {
+                assertThat(this.brand).isEqualTo(newProduct.brand)
+                assertThat(this.price).isEqualTo(newProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최저가 상품 변경 시 변경된 값으로 갱신된다")
+        fun categoryNameLowestUpdateTest() {
+            val category = Category.PANTS
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val allProductByCategory = productRepository.findAllByCategory(category)
+            val anotherProduct = allProductByCategory.first { it.brand != rankFirstResponse.body!!.lowest.brand }
+            anotherProduct.price = rankFirstResponse.body!!.lowest.price - 1
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(anotherProduct, header)
+            val response = restTemplate.exchange("/admin/product", HttpMethod.PUT, entity, Product::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.lowest) {
+                assertThat(this.brand).isEqualTo(anotherProduct.brand)
+                assertThat(this.price).isEqualTo(anotherProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최고가 상품 변경 시 변경된 값으로 갱신된다")
+        fun categoryNameHighestUpdateTest() {
+            val category = Category.SNEAKERS
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val allProductByCategory = productRepository.findAllByCategory(category)
+            val anotherProduct = allProductByCategory.first { it.brand != rankFirstResponse.body!!.highest.brand }
+            anotherProduct.price = rankFirstResponse.body!!.highest.price + 1
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(anotherProduct, header)
+            val response = restTemplate.exchange("/admin/product", HttpMethod.PUT, entity, Product::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.highest) {
+                assertThat(this.brand).isEqualTo(anotherProduct.brand)
+                assertThat(this.price).isEqualTo(anotherProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최저가 상품 삭제 시 변경된 값으로 갱신된다")
+        fun categoryNameLowestDeleteTest() {
+            val category = Category.BAG
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val allProductByCategory = productRepository.findAllByCategory(category)
+            val lowestProduct = allProductByCategory.first { it.brand == rankFirstResponse.body!!.lowest.brand }
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(null, header)
+            val response = restTemplate.exchange("/admin/product/${lowestProduct.id!!}", HttpMethod.DELETE, entity, Product::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.lowest) {
+                assertThat(this.brand).isNotEqualTo(lowestProduct.brand)
+                assertThat(this.price).isNotEqualTo(lowestProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 이름별 조회시 최고가 상품 삭제 시 변경된 값으로 갱신된다")
+        fun categoryNameHighestDeleteTest() {
+            val category = Category.CAP
+            val categoryName = category.value
+            val rankFirstResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankFirstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val allProductByCategory = productRepository.findAllByCategory(category)
+            val highestProduct = allProductByCategory.first { it.brand == rankFirstResponse.body!!.highest.brand }
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(null, header)
+            val response = restTemplate.exchange("/admin/product/${highestProduct.id!!}", HttpMethod.DELETE, entity, Product::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+            val rankSecondResponse = restTemplate.getForEntity("/category/rank?name=$categoryName", CategoryNameRankResponse::class.java)
+            assertThat(rankSecondResponse.statusCode).isEqualTo(HttpStatus.OK)
+            with(rankSecondResponse.body!!.lowest) {
+                assertThat(this.brand).isNotEqualTo(highestProduct.brand)
+                assertThat(this.price).isNotEqualTo(highestProduct.price)
+            }
+        }
+
+        @Test
+        @DisplayName("브랜드 최저가 조회가 잘 된다")
+        fun brandLowestTest() {
+            val response = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+
+            with(response.body!!) {
+                assertThat(this.totalPrice).isNotNull()
+                assertThat(this.brand).isNotNull()
+                assertThat(this.totalPrice).isEqualTo(products.sumOf { it.price })
+                assertThat(Category.entries.toSet()).isEqualTo(products.map { it.category }.toSet())
+            }
+        }
+
+        @Test
+        @DisplayName("브랜드 최저가 조회시 카테고리가 하나라도 지워지면 다른 브랜드로 변경된다")
+        fun brandLowestDeleteTest() {
+            val lowestBrandResponse = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(lowestBrandResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val randomProduct = lowestBrandResponse.body!!.products.random()
+            val allProductByCategory = productRepository.findAllByCategory(randomProduct.category)
+            val deleteProduct = allProductByCategory.first { it.brand == lowestBrandResponse.body!!.brand }
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(null, header)
+            val deleteResponse =
+                restTemplate.exchange(
+                    "/admin/product/${deleteProduct.id!!}",
+                    HttpMethod.DELETE,
+                    entity,
+                    Product::class.java,
+                )
+            assertThat(deleteResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            Thread.sleep(100) // 이벤트 처리를 위한 대기
+
+            val response = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+            assertThat(response.body!!.brand).isNotEqualTo(lowestBrandResponse.body!!.brand)
+        }
+
+        @Test
+        @DisplayName("브랜드 최저가 조회시 다른 브랜드 상품을 가격을 최저가로 변경하면 브랜드가 변경된다")
+        fun brandLowestUpdateTest() {
+            val lowestBrandResponse = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(lowestBrandResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val randomProduct = lowestBrandResponse.body!!.products.random()
+            val allProductByCategory = productRepository.findAllByCategory(randomProduct.category)
+            val anotherProduct = allProductByCategory.first { it.brand != lowestBrandResponse.body!!.brand }
+            val anotherBrand = anotherProduct.brand
+
+            val brandProductResponse = restTemplate.getForEntity("/admin/product/brand/$anotherBrand", ProductsResponse::class.java)
+            val lowestProductMap = lowestBrandResponse.body!!.products.associateBy({ it.category }, { it.price })
+            brandProductResponse.body!!
+                .products
+                .map {
+                    it.price = lowestProductMap[it.category]!! - 1
+                    it
+                }.forEach {
+                    val header =
+                        HttpHeaders().apply {
+                            contentType = MediaType.APPLICATION_JSON
+                        }
+                    val entity = HttpEntity(it, header)
+                    val response = restTemplate.exchange("/admin/product", HttpMethod.PUT, entity, Product::class.java)
+                    assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+                    Thread.sleep(100) // 이벤트 처리를 위한 대기
+                }
+
+            val response = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+            assertThat(response.body!!.brand).isEqualTo(anotherBrand)
+        }
+
+        @Test
+        @DisplayName("브랜드 최저가 조회시 신규 브랜드 상품을 추가하면 브랜드가 추가된다")
+        fun brandLowestCreateTest() {
+            val newBrand = "X"
+            val lowestBrandResponse = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(lowestBrandResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val products = lowestBrandResponse.body!!.products
+            products.forEach {
+                val newProduct = Product(brand = newBrand, category = it.category, price = it.price - 1)
+                val response = restTemplate.postForEntity("/admin/product", newProduct, Product::class.java)
+
+                assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+                Thread.sleep(100) // 이벤트 처리를 위한 대기
+            }
+
+            val response = restTemplate.getForEntity("/brand/lowest", BrandLowestRankResponse::class.java)
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+            assertThat(response.body!!.brand).isEqualTo(newBrand)
         }
     }

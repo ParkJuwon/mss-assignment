@@ -20,10 +20,12 @@ class ProductService(
     fun get(id: Long): Product = productRepository.findByIdOrNull(id) ?: throw MssException(MssExceptionType.PRODUCT_NOT_FOUND)
 
     @Transactional(readOnly = true)
-    fun getByBrand(brand: String): List<Product> = productRepository.findAllByBrand(brand).sortedBy { it.category.ordinal }
+    fun getByBrand(brand: String): ProductsResponse =
+        ProductsResponse(productRepository.findAllByBrand(brand).sortedBy { it.category.ordinal })
 
     @Transactional(readOnly = true)
-    fun getByCategory(category: Category): List<Product> = productRepository.findAllByCategory(category).sortedBy { it.category.ordinal }
+    fun getByCategory(category: Category): ProductsResponse =
+        ProductsResponse(productRepository.findAllByCategory(category).sortedBy { it.category.ordinal })
 
     @Transactional
     fun create(product: Product): Product {

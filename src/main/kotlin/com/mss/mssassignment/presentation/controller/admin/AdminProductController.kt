@@ -1,6 +1,7 @@
 package com.mss.mssassignment.presentation.controller.admin
 
 import com.mss.mssassignment.application.service.product.ProductService
+import com.mss.mssassignment.application.service.product.ProductsResponse
 import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
 import com.mss.mssassignment.domain.product.event.ProductCreatedEvent
@@ -30,12 +31,12 @@ class AdminProductController(
     @GetMapping("/brand/{brand}")
     fun getProductByBrand(
         @PathVariable brand: String,
-    ): List<Product> = productService.getByBrand(brand)
+    ): ProductsResponse = productService.getByBrand(brand)
 
     @GetMapping("/category/{category}")
     fun getProductByCategory(
         @PathVariable category: String,
-    ): List<Product> = productService.getByCategory(Category.findCategory(category))
+    ): ProductsResponse = productService.getByCategory(Category.findCategory(category))
 
     @PostMapping
     fun createProduct(

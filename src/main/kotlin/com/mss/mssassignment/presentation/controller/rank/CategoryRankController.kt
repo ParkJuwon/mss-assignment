@@ -18,9 +18,9 @@ class CategoryRankController(
     @GetMapping("/lowest")
     fun getCategoryLowestRank(): CategoryLowestRankResponse = categoryRankService.getLowestRank()
 
-    @GetMapping("/name")
+    @GetMapping("/rank")
     fun getCategoryRankByName(
-        @RequestParam categoryName: String?,
+        @RequestParam name: String?,
     ): CategoryNameRankResponse =
-        categoryName?.let { categoryRankService.getCategoryRankByName(it) } ?: throw MssException(MssExceptionType.CATEGORY_NAME_REQUIRED)
+        name?.let { categoryRankService.getCategoryRankByName(it) } ?: throw MssException(MssExceptionType.CATEGORY_NAME_REQUIRED)
 }
