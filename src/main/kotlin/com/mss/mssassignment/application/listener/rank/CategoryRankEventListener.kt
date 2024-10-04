@@ -1,6 +1,7 @@
 package com.mss.mssassignment.application.listener.rank
 
 import com.mss.mssassignment.domain.product.Product
+import com.mss.mssassignment.domain.product.ProductRepository
 import com.mss.mssassignment.domain.product.event.ProductCreatedEvent
 import com.mss.mssassignment.domain.product.event.ProductDeletedEvent
 import com.mss.mssassignment.domain.product.event.ProductUpdatedEvent
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional
 @Component
 class CategoryRankEventListener(
     private val categoryRankRepository: CategoryRankRepository,
+    private val productRepository: ProductRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -39,6 +41,23 @@ class CategoryRankEventListener(
     fun handle(event: ProductDeletedEvent) {
         // 상품이 삭제 될 때마다 랭킹을 업데이트 한다.
         logger.info("[RankEventListener] ProductDeletedEvent: $event")
+        val categoryRanks = categoryRankRepository.findAllByCategory(event.product.category)
+        categoryRanks.forEach { rank ->
+            when (rank.type) {
+                RankType.LOWEST -> {
+                    if (rank.product == null) { // 최저가 상품이 지워졌을 경우
+                        val lowestProduct = productRepository.findTopByCategoryOrderByPrice(event.product.category)
+                        rank.product = lowestProduct
+                    }
+                }
+                RankType.HIGHEST -> {
+                    if (rank.product == null) { // 최고가 상품이 지워졌을 경우
+                        val highestProduct = productRepository.findTopByCategoryOrderByPriceDesc(event.product.category)
+                        rank.product = highestProduct
+                    }
+                }
+            }
+        }
     }
 
     private fun refreshCategoryRank(product: Product) {

@@ -24,7 +24,7 @@ import org.hibernate.annotations.Comment
 class Brand(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long = 0L,
+    val id: Long? = null,
     @Comment("브랜드 명")
     @Column(nullable = false)
     var brand: String,

@@ -1,5 +1,6 @@
 package com.mss.mssassignment.application.service.product
 
+import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
 import com.mss.mssassignment.domain.product.ProductRepository
 import com.mss.mssassignment.infrastructure.exception.MssException
@@ -14,6 +15,15 @@ class ProductService(
     private val productRepository: ProductRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    @Transactional(readOnly = true) // read db 분리는 되어있지 않지만 명시적 표기
+    fun get(id: Long): Product = productRepository.findByIdOrNull(id) ?: throw MssException(MssExceptionType.PRODUCT_NOT_FOUND)
+
+    @Transactional(readOnly = true)
+    fun getByBrand(brand: String): List<Product> = productRepository.findAllByBrand(brand).sortedBy { it.category.ordinal }
+
+    @Transactional(readOnly = true)
+    fun getByCategory(category: Category): List<Product> = productRepository.findAllByCategory(category).sortedBy { it.category.ordinal }
 
     @Transactional
     fun create(product: Product): Product {
