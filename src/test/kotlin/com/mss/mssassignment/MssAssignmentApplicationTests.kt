@@ -359,7 +359,7 @@ class MssAssignmentApplicationTests
         }
 
         @Test
-        @DisplayName("카테고리 이름별 조회시 최저가 상품 생성 시 변경된 값으로 갱신된다")
+        @DisplayName("카테고리 이름별 조회시 최고가 상품 생성 시 변경된 값으로 갱신된다")
         fun categoryNameHighestCreateTest() {
             val category = Category.OUTER
             val categoryName = category.value
