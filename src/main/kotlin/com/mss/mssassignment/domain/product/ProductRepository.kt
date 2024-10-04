@@ -16,4 +16,6 @@ interface ProductRepository : JpaRepository<Product, Long> {
         brand: String,
         category: Category,
     ): Product?
+
+    fun findTopByOrderByIdDesc(): Product
 }

@@ -33,8 +33,16 @@ class ProductService(
 
     @Transactional
     fun update(product: Product): Product {
-        val findProduct = productRepository.findByIdOrNull(product.id)
-        return findProduct?.setProduct(product) ?: throw MssException(MssExceptionType.PRODUCT_NOT_FOUND)
+        val findProductById = productRepository.findByIdOrNull(product.id)
+        val findProductByBrandAndCategory = productRepository.findByBrandAndCategory(product.brand, product.category)
+
+        return findProductById?.let {
+            if (findProductByBrandAndCategory != null && it.id != findProductByBrandAndCategory.id) {
+                // 이미 존재하는 브랜드와 카테고리의 상품이 존재할 경우
+                throw MssException(MssExceptionType.PRODUCT_ALREADY_EXISTS)
+            }
+            it.setProduct(product)
+        } ?: throw MssException(MssExceptionType.PRODUCT_NOT_FOUND)
     }
 
     @Transactional
