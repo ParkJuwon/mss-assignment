@@ -1,5 +1,6 @@
 package com.mss.mssassignment
 
+import com.mss.mssassignment.application.service.rank.CategoryLowestRankResponse
 import com.mss.mssassignment.domain.Category
 import com.mss.mssassignment.domain.product.Product
 import com.mss.mssassignment.domain.product.ProductRepository
@@ -190,6 +191,117 @@ class MssAssignmentApplicationTests
             with(response.body!!) {
                 assertThat(this.code).isEqualTo(MssExceptionType.PRODUCT_NOT_FOUND.code)
                 assertThat(this.message).isEqualTo(MssExceptionType.PRODUCT_NOT_FOUND.message)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 별 최저가 조회시 성공 한다")
+        fun categoryLowestTest() {
+            val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+
+            assertThat(response.statusCode).isEqualTo(HttpStatus.OK)
+            with(response.body!!) {
+                val productCategories = this.products.map { it.category }.toSet()
+                assertThat(productCategories).isEqualTo(Category.entries.toSet())
+
+                val totalPrice = this.products.sumOf { it.price }
+                assertThat(totalPrice).isEqualTo(this.totalPrice)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 별 최저가 변경 시 변경된 값으로 갱신된다")
+        fun categoryLowestUpdateTest() {
+            val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val randomProduct = firstResponse.body!!.products.random()
+            val allProductByCategory = productRepository.findAllByCategory(randomProduct.category)
+            val anotherProduct = allProductByCategory.first { it.brand != randomProduct.brand }
+            anotherProduct.price = randomProduct.price - 1
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(anotherProduct, header)
+            val updateResponse = restTemplate.exchange("/admin/product", HttpMethod.PUT, entity, Product::class.java)
+            assertThat(updateResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            with(response.body!!) {
+                val productCategories = this.products.map { it.category }.toSet()
+                assertThat(productCategories).isEqualTo(Category.entries.toSet())
+
+                val totalPrice = this.products.sumOf { it.price }
+                assertThat(totalPrice).isEqualTo(this.totalPrice)
+
+                val changedProduct = this.products.find { it.category == anotherProduct.category }!!
+                assertThat(changedProduct.price).isEqualTo(anotherProduct.price)
+                assertThat(changedProduct.brand).isEqualTo(anotherProduct.brand)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 별 최저가 삭제 시 변경된 값으로 갱신된다")
+        fun categoryLowestDeleteTest() {
+            val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val randomProduct = firstResponse.body!!.products.random()
+            val allProductByCategory = productRepository.findAllByCategory(randomProduct.category)
+            val deleteProduct = allProductByCategory.first { it.brand == randomProduct.brand }
+
+            val header =
+                HttpHeaders().apply {
+                    contentType = MediaType.APPLICATION_JSON
+                }
+            val entity = HttpEntity(null, header)
+            val deleteResponse =
+                restTemplate.exchange(
+                    "/admin/product/${deleteProduct.id!!}",
+                    HttpMethod.DELETE,
+                    entity,
+                    Product::class.java,
+                )
+            assertThat(deleteResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            with(response.body!!) {
+                val productCategories = this.products.map { it.category }.toSet()
+                assertThat(productCategories).isEqualTo(Category.entries.toSet())
+
+                val totalPrice = this.products.sumOf { it.price }
+                assertThat(totalPrice).isEqualTo(this.totalPrice)
+
+                val changedProduct = this.products.find { it.category == deleteProduct.category }!!
+                assertThat(changedProduct.brand).isNotEqualTo(deleteProduct.brand)
+            }
+        }
+
+        @Test
+        @DisplayName("카테고리 별 최저가 생성 시 변경된 값으로 갱신된다")
+        fun categoryLowestCreateTest() {
+            val firstResponse = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            assertThat(firstResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val randomProduct = firstResponse.body!!.products.random()
+
+            val newProduct = Product(brand = "X", category = randomProduct.category, price = 1)
+            val createResponse = restTemplate.postForEntity("/admin/product", newProduct, Product::class.java)
+            assertThat(createResponse.statusCode).isEqualTo(HttpStatus.OK)
+
+            val response = restTemplate.getForEntity("/category/lowest", CategoryLowestRankResponse::class.java)
+            with(response.body!!) {
+                val productCategories = this.products.map { it.category }.toSet()
+                assertThat(productCategories).isEqualTo(Category.entries.toSet())
+
+                val totalPrice = this.products.sumOf { it.price }
+                assertThat(totalPrice).isEqualTo(this.totalPrice)
+
+                val changedProduct = this.products.find { it.category == newProduct.category }!!
+                assertThat(changedProduct.brand).isNotEqualTo(randomProduct.brand)
+                assertThat(changedProduct.brand).isEqualTo(newProduct.brand)
             }
         }
     }
